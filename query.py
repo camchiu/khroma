@@ -1,5 +1,6 @@
 # import necessary packages
 from astroquery.mast import Observations
+from reproject import reproject_interp
 from astropy.io import fits
 import streamlit as st
 
@@ -26,12 +27,13 @@ def search_all_images(filter_name, telescope, obj):
     return im
 
 # download data
-def download_image(im, extension = 0):
+@st.cache_data
+def download_image(_im, extension = 0):
     # choose specific image
-    image = im[extension]
+    image = _im[extension]
     
     # download file and return filename
-    download = Observations.download_products(im, cache = False)
+    download = Observations.download_products(_im, cache = False)
     file_name = download['Local Path'][0]
     
     return file_name
@@ -59,5 +61,16 @@ def load_fits(filename):
         file_data = hdu[0].data
     
     return file_header, file_data
+
+# align images using WCS / headers
+@st.cache_data
+def repoject(file_name, _match_header):
+    """Reproject data using a reference header."""
+    header, data = load_fits(file_name)
+    original_data = (data, header)
+    reprojected_data, _ = reproject_interp(input_data = original_data, output_projection = _match_header)
+    # reprojected_data, _ = reproject_interp(input_data = fits.open(vars()["file_" + ff])[1], output_projection = match_header)
+
+    return reprojected_data
 
 # create sky map of available observations ??

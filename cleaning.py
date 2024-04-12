@@ -3,7 +3,6 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import math
-
 import streamlit as st
 
 # create single images of filters
@@ -87,5 +86,3 @@ def show_streamlit(filter_data, filter, key_names, wcs_header = None):
     st.pyplot(fig)
 
     return norm_data
-
-# align images using WCS / headers

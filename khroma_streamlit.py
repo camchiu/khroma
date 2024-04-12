@@ -6,7 +6,6 @@ import re
 from astropy.visualization import make_lupton_rgb
 from astropy.io import fits
 from astroquery.mast import Observations
-from reproject import reproject_interp
 from astropy.wcs import WCS
 import matplotlib.pyplot as plt
 
@@ -102,7 +101,8 @@ if reproj:
     match_header, vars()[ff + "_data"] = query.load_fits(vars()["file_" + align])
 
     for ff in filter_list:
-        vars()[ff + "_data"], _ = reproject_interp(input_data = fits.open(vars()["file_" + ff])[1], output_projection = match_header)
+        vars()[ff + "_data"] = query.repoject(vars()["file_" + ff], match_header)
+        # vars()[ff + "_data"], _ = reproject_interp(input_data = fits.open(vars()["file_" + ff])[1], output_projection = match_header)
 
 else:
     for ff in filter_list:
@@ -149,15 +149,7 @@ col1, col2 = st.columns(spec = [0.34, 0.66])
 with col1:
     st.write("explanatory text ....")
 
-    # filter throughput
-    instrument = instrument_name.split("/")[0]
-    if instrument == "NIRCAM":
-        st.image("filter_throughput/nircam_filters.png", caption = "JWST/NIRCAM filter throughput.")
-    elif instrument == "MIRI":
-        st.image("filter_throughput/miri_filters.png", caption = "JWST/MIRI filter throughput.")
-    elif instrument == "NIRISS":
-        st.image("filter_throughput/niriss_filters.png", caption = "JWST/MIRI filter throughput.")
-    ### fill in HST instruments 
+    instrument = imaging.get_filter_throughput(telescope_name, instrument_name, filter_list)
 
     # assign rgb values
     r_filter = st.selectbox(label = "Select the filter for red ...", options = filter_list, index = 0)
@@ -167,7 +159,7 @@ with col1:
     st.write("explanatory text ....")
 
     # get stretch, Q-factor
-    s_value = st.slider(label = "Q-factor", min_value = 0.01, max_value = 2., step = 0.01, value = 0.5)
+    s_value = st.slider(label = "Stretch factor", min_value = 0.01, max_value = 2., step = 0.01, value = 0.5)
     q_value = st.slider(label = "Q-factor", min_value = 0.1, max_value = 20., step = 0.01, value = 5.)
 
 with col2:
