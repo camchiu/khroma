@@ -4,7 +4,6 @@ import streamlit as st
 import re
 
 from astropy.visualization import make_lupton_rgb
-from astropy.io import fits
 from astroquery.mast import Observations
 from astropy.wcs import WCS
 import matplotlib.pyplot as plt
@@ -143,7 +142,7 @@ with col3:
 
 st.markdown("""---""")
 
-#################### SECTION 2 : RGB imaging ####################
+#################### SECTION 3 : RGB imaging ####################
 col1, col2 = st.columns(spec = [0.34, 0.66])
 
 with col1:

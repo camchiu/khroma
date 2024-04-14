@@ -29,6 +29,8 @@ def plot_single(data, vmin, vmax, figsize = (10, 10), wcs_header = None):
     else: # with wcs coords
         fig, ax = plt.subplots(figsize = figsize, subplot_kw = {'projection': wcs_header})
         ax.coords.grid(color = 'gray', alpha = 0.75, linestyle = 'solid')
+
+        ### force multiple tick marsk
         
         ax.set_xlabel("Right Ascension [hms]", size = 15)
         ax.set_ylabel("Declination [degrees]", size = 15)
