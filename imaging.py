@@ -4,28 +4,37 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-# method to create and download a full RGB or RGB + CMY astronomical image
+### method to create and download a full RGB or RGB + CMY astronomical image
 
 # plot rgb image
-def plot_rgb(rgb_data, color, figsize = (10, 10), wcs_header = None):
-    if wcs_header == None: # without wcs coords
-        fig, ax = plt.subplots(figsize = figsize)
-
-        ax.set_xlabel("x", size = 15)
-        ax.set_ylabel("y", size = 15)
-    
-    else: # with wcs coords
-        fig, ax = plt.subplots(figsize = figsize, subplot_kw = {'projection': wcs_header})
-        ax.coords.grid(color = 'gray', alpha = 0.75, linestyle = 'solid')
-        
-        ax.set_xlabel("Right Ascension [hms]", size = 15)
-        ax.set_ylabel("Declination [degrees]", size = 15)
-        
-    ax.imshow(rgb_data, vmin = 0, vmax = 1, cmap = color, origin = "lower")
+def plot_rgb(rgb_data):
+    """Plot RGB data.
+    Parameters
+    ----------
+        rgb_data (array) : astropy make_lupton_rgb data
+    Output
+    ------
+        fig, ax : figure and axis onto which data is plotted
+    """
+    fig, ax = plt.subplots(figsize = (10, 10))
+    ax.imshow(rgb_data, vmin = 0, vmax = 1, cmap = None, origin = "lower")
+    plt.axis('off')
 
     return fig, ax
 
+# get image for instrument throughput
 def get_filter_throughput(telescope_name, instrument_name, filter_names):
+    """Shows image(s) on streamlit from filter_throughput folder based on telescope, instrument, and filters.
+    Parameters
+    ----------
+        telescope_name (str) : telescope
+        instrument_name (str) : instrument
+        filter_names (list) : list of filters
+    Output
+    ------
+        instrument (str) : instrument name
+    """
+
     # filter throughput -- HST/WFC3/UVIS
     wfc3_uvis_filters = [["F200LP", "F300X", "F350LP", "F475X", "F600LP", "F850LP"],
                          ["F218W", "F225W", "F275W", "F336W", "F390W", "F438W",
