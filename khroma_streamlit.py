@@ -17,7 +17,7 @@ st.set_page_config(page_title = "Khroma", layout = "wide")
 
 st.title("Khroma")
 
-st.write("need at least 3 filter images.")
+st.write("Astronomical images are one of the ways we can visually come to understand the grandeur of the Universe. The creation of these images takes a lot of scientific and artistic work. Using this page, you can create your own astronomical images using raw filter data from the Mikulski Archive for Space Telescopes (MAST). Start by choosing a space telescope and astronomical object below.")
 
 # keeping button clicked on
 if 'clicked' not in st.session_state: # initialize the key in session state
@@ -85,20 +85,28 @@ col1, col2, col3 = st.columns(spec = [0.34, 0.33, 0.33])
 ### check that all filters are from the same observing run ?? / incorporate observing run somehow ?? -- toggle through different available images ??? -- FLIP THROUGH EACH OF THE IMAGES WHEN DOWNLOADED !!!
 
 with col1:
+    st.write("Click below to see the individual filter images that you have chosen. Remember that to create a RGB (red-green-blue) color image, you will need at least 3 different filters to assign to each of the three different colors.")
     st.button("Show individual filter images.", on_click = clicked, args = [2]) # button 2 with callback function
 
-    st.write(" ... text ...")
+    st.write("Use the toggles above each individual filter image to adjust the minimum and maximum to your liking. For example, if the background of the image looks too dark, consider increasing the lower bound.")
+
+    st.write("")
+
+    st.write("Grid lines can help orient the viewer.")
+    grid = st.checkbox("Add grid lines.")
+
+    st.write("Sometimes it can be helpful for astronomers to use sky coordinates, such as right ascension and declination, to see the spatial spread of images across the sky. These coordinates work like longitude and latitude lines, except projected on the sky.")
 
     hms = st.checkbox("Use RA/Dec.")
 
-    grid = st.checkbox("Add grid lines.")
+    st.write("If the individual filter images were taken during different observing runs, they might be slightly misaligned. You can use the button below to reproject all the images against a reference filter image.")
 
     reproj = st.checkbox("Align images.")
     # if aligning, choose which filter to align against
     if reproj:
         cola, colb, colc = st.columns(spec = [0.1, 0.8, 0.2])
         with colb:
-            align = st.selectbox(label = "Select a filter to align against ...", options = filter_list, index = 0)
+            align = st.selectbox(label = "Reference filter:", options = filter_list, index = 0)
 
 if st.session_state.clicked[2]: # button 2
     # open filter data
@@ -151,25 +159,31 @@ st.markdown("""---""")
 col1, col2 = st.columns(spec = [0.34, 0.66])
 
 with col1:
+    st.write("Now we are ready to layer all of the individual filter data and create our RGB image!")
+
     st.button("Show full RGB image.", on_click = clicked, args = [3]) # button 3
 
-    st.write("explanatory text ....")
+    st.write(f"Scientists often match filters to colors based on what wavelengths of light they let it. The image below shows the throughput for each of the filters on {instrument_name}.")
 
     # if there are enough filters, show user input for creation of RGB image
     if (telescope_choice != None) & (filter_list != None):
         if (len(filter_list) >= 3):
             instrument = imaging.get_filter_throughput(telescope_name, instrument_name, filter_list)
 
-            # assign rgb values
-            r_filter = st.selectbox(label = "Select the filter for red ...", options = filter_list, index = 0)
-            g_filter = st.selectbox(label = "Select the filter for green ...", options = filter_list, index = 1)
-            b_filter = st.selectbox(label = "Select the filter for blue ...", options = filter_list, index = 2)
+            st.write("Assign each color a filter below. This can be based off the filter passband ranges shown above, or it can be whatever you decide!")
 
-            st.write("explanatory text ....")
+            # assign rgb values
+            r_filter = st.selectbox(label = "Select the filter for red:", options = filter_list, index = 0)
+            g_filter = st.selectbox(label = "Select the filter for green:", options = filter_list, index = 1)
+            b_filter = st.selectbox(label = "Select the filter for blue:", options = filter_list, index = 2)
+
+            st.write("You can also adjust the stretch factor and Q-factor of the image.")
 
             # get stretch, Q-factor
             s_value = st.slider(label = "Stretch factor", min_value = 0.01, max_value = 2., step = 0.01, value = 0.5)
             q_value = st.slider(label = "Q-factor", min_value = 0.1, max_value = 20., step = 0.01, value = 5.)
+
+            st.write("Don't forget to download your finished product at the end!")
 
 if st.session_state.clicked[3]: # button 3
     with col2:
@@ -180,7 +194,7 @@ if st.session_state.clicked[3]: # button 3
 
         # create rgb image
         rgb = make_lupton_rgb(r, g, b, stretch = s_value, Q = q_value)
-        fig, ax = imaging.plot_rgb(rgb, color = "plasma", wcs_header = obj_wcs)
+        fig, ax = imaging.plot_rgb(rgb)
         st.pyplot(fig)
 
         # download image
