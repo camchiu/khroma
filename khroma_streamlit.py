@@ -57,22 +57,33 @@ with col1:
         instruments = list(np.unique(observation_table["instrument_name"])) 
         if len(instruments) == 0:
             st.write(f"There are no observations of {obj_name} available from {telescope_name}. Please try a different telescope or input a different object.")
+        
         else:
             instrument_name = st.radio("Please select an available instrument:", options = instruments)
 
-        # choose filters
-        mask = (observation_table["instrument_name"] == instrument_name) & (observation_table["calib_level"] > 1)
-        observation_table = observation_table[mask]
-        total_filter_list = list(np.unique(observation_table["filters"]))
+            # get filters
+            mask = (observation_table["instrument_name"] == instrument_name) & (observation_table["calib_level"] > 1)
+            observation_table = observation_table[mask]
+            total_filter_list = list(np.unique(observation_table["filters"]))
 
-        filter_list = st.multiselect(label = f"The following {len(total_filter_list)} filters are available. Select which ones to plot:",
-                                     options = total_filter_list)
+            # choose filters
+            if len(total_filter_list) == 1:
+                st.write(f"Only 1 filter image of {obj_name} is available from {telescope_name}/{instrument_name}, which is not enough to create an RGB image. Please try a different instrument or input a different object.")
+                filter_list = None
+            
+            elif len(total_filter_list) == 2:
+                st.write(f"Only 2 filter images of {obj_name} are available from {telescope_name}/{instrument_name}, which is not enough to create an RGB image. Please try a different instrument or input a different object.")
+                filter_list = None
 
-        # download filter data
-        for filter_name in filter_list:
-            im = query.search_all_images(filter = filter_name, telescope = telescope_name, obj = obj_name)
-            vars()["file_" + filter_name] = query.download_image(im, filter_name, telescope_name, obj_name, 0)
-            st.write("    " + filter_name)
+            else:
+                filter_list = st.multiselect(label = f"The following {len(total_filter_list)} filters are available. Select which ones to plot:",
+                                             options = total_filter_list)
+
+                # download filter data
+                for filter_name in filter_list:
+                    im = query.search_all_images(filter = filter_name, telescope = telescope_name, obj = obj_name)
+                    vars()["file_" + filter_name] = query.download_image(im, filter_name, telescope_name, obj_name, 0)
+                    st.write("    " + filter_name)
 
 with col2:
     ### sky map
@@ -163,19 +174,107 @@ with col1:
 
     st.button("Show full RGB image.", on_click = clicked, args = [3]) # button 3
 
-    st.write(f"Scientists often match filters to colors based on what wavelengths of light they let it. The image below shows the throughput for each of the filters on {instrument_name}.")
-
     # if there are enough filters, show user input for creation of RGB image
     if (telescope_choice != None) & (filter_list != None):
         if (len(filter_list) >= 3):
-            instrument = imaging.get_filter_throughput(telescope_name, instrument_name, filter_list)
-
             st.write("Assign each color a filter below. This can be based off the filter passband ranges shown above, or it can be whatever you decide!")
 
+            instrument, image_name, caption_label = imaging.get_filter_throughput(telescope_name, instrument_name, filter_list)
+
+            expander_filters = st.expander(f"Scientists often match filters to colors based on what wavelengths of light they let it. The image below shows the throughput for each of the filters on {instrument_name}.")
+            # expander.write("The chart above shows some numbers I picked for you. I rolled actual dice for these, so they're *guaranteed to be random")
+            expander_filters.image(image_name, caption = caption_label)
+
+            expander_colors = st.expander(f"Expander about creating CMY images.")
+            expander_colors.write("text + CMY image?")
+
             # assign rgb values
-            r_filter = st.selectbox(label = "Select the filter for red:", options = filter_list, index = 0)
-            g_filter = st.selectbox(label = "Select the filter for green:", options = filter_list, index = 1)
-            b_filter = st.selectbox(label = "Select the filter for blue:", options = filter_list, index = 2)
+            r_filter = st.multiselect(label = "Select the filter for red:", options = filter_list)
+
+            # red filter
+            r_num = len(r_filter)
+            if r_num == 1:
+                r = vars()["norm_" + r_filter[0] + "_data"]
+            
+            elif r_num > 1:
+                columns_text = st.columns(spec = [0.1, 0.9])
+                with columns_text[1]:
+                    st.write("Choose the weights for each red filter:")
+
+                rspec_list = [0.1] + [0.9/r_num] * r_num
+                columns = st.columns(spec = rspec_list)
+                rweight = 0
+
+                for rr in range(r_num):
+                    with columns[rr+1]:
+                        vars()["rweight_" + r_filter[rr]] = st.number_input(label = r_filter[rr], value = 1/r_num, key = "r_" + r_filter[rr])
+                        rweight += vars()["rweight_" + r_filter[rr]]
+                
+                for rr in range(r_num):
+                    rf = r_filter[rr]
+                    normalized_weight = vars()["rweight_" + rf] / rweight
+                    if rr == 0:
+                        r = normalized_weight * vars()["norm_" + rf + "_data"]
+                    else:
+                        r += normalized_weight * vars()["norm_" + rf + "_data"]
+
+            # green filter
+            g_filter = st.multiselect(label = "Select the filter for green:", options = filter_list)
+
+            g_num = len(g_filter)
+            if g_num == 1:
+                g = vars()["norm_" + g_filter[0] + "_data"]
+
+            if g_num > 1:
+                columns_text = st.columns(spec = [0.1, 0.9])
+                with columns_text[1]:
+                    st.write("Choose the weights for each green filter:")
+
+                gspec_list = [0.1] + [0.9/g_num] * g_num
+                columns = st.columns(spec = gspec_list)
+                gweight = 0
+
+                for gg in range(g_num):
+                    with columns[gg+1]:
+                        vars()["gweight_" + g_filter[gg]] = st.number_input(label = g_filter[gg], value = 1/g_num, key = "g_" + g_filter[gg])
+                        gweight += vars()["gweight_" + g_filter[gg]]
+                
+                for gg in range(r_num):
+                    gf = g_filter[gg]
+                    normalized_weight = vars()["gweight_" + gf] / gweight
+                    if gg == 0:
+                        g = normalized_weight * vars()["norm_" + gf + "_data"]
+                    else:
+                        g += normalized_weight * vars()["norm_" + gf + "_data"]
+
+            # blue filter
+            b_filter = st.multiselect(label = "Select the filter for blue:", options = filter_list)
+
+            b_num = len(b_filter)
+            if b_num == 1:
+                b = vars()["norm_" + b_filter[0] + "_data"]
+
+            if b_num > 1:
+                columns_text = st.columns(spec = [0.1, 0.9])
+                with columns_text[1]:
+                    st.write("Choose the weights for each blue filter:")
+
+                bspec_list = [0.1] + [0.9/b_num] * b_num
+                columns = st.columns(spec = bspec_list)
+                bweight = 0
+
+                for bb in range(b_num):
+                    with columns[bb+1]:
+                        vars()["bweight_" + b_filter[bb]] = st.number_input(label = b_filter[bb], value = 1/b_num, key = "b_" + b_filter[bb])
+                        bweight += vars()["bweight_" + b_filter[bb]]
+                
+                for bb in range(b_num):
+                    bf = b_filter[bb]
+                    normalized_weight = vars()["bweight_" + bf] / bweight
+                    if bb == 0:
+                        b = normalized_weight * vars()["norm_" + bf + "_data"]
+                    else:
+                        b += normalized_weight * vars()["norm_" + bf + "_data"]
 
             st.write("You can also adjust the stretch factor and Q-factor of the image.")
 
@@ -187,15 +286,15 @@ with col1:
 
 if st.session_state.clicked[3]: # button 3
     with col2:
-        # get normalized data
-        r = vars()["norm_" + r_filter + "_data"]
-        g = vars()["norm_" + g_filter + "_data"]
-        b = vars()["norm_" + b_filter + "_data"]
-
         # create rgb image
-        rgb = make_lupton_rgb(r, g, b, stretch = s_value, Q = q_value)
-        fig, ax = imaging.plot_rgb(rgb)
-        st.pyplot(fig)
+        try:
+            rgb = make_lupton_rgb(r, g, b, stretch = s_value, Q = q_value)
+            fig, ax = imaging.plot_rgb(rgb)
+            st.pyplot(fig)
+        except NameError:
+            st.error("Make sure that you have assigned a filter to each color.")
+        except ValueError:
+            st.error("Make sure that the images are aligned. You can use the 'Align images.' checkbox above to do so manually. If that does not work, there might be a problem with the fits header.")
 
         # download image
         image_name = obj_name + "_" + instrument + ".png"
@@ -203,20 +302,3 @@ if st.session_state.clicked[3]: # button 3
         st.download_button(label = "Download image.", data = open(image_name, "rb").read(), file_name = image_name, mime = "image/png")
 
 ### more information about object + observing run (PI)
-
-
-
-
-
-
-
-
-
-
-# expander = st.expander("See explanation")
-# expander.write(\"\"\"
-#     The chart above shows some numbers I picked for you.
-#     I rolled actual dice for these, so they're *guaranteed* to
-#     be random.
-# \"\"\")
-# expander.image("https://static.streamlit.io/examples/dice.jpg")

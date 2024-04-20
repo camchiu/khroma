@@ -69,11 +69,14 @@ def get_filter_throughput(telescope_name, instrument_name, filter_names):
 
         # filter throughput -- JWST
         if instrument == "NIRCAM":
-            st.image("filter_throughput/nircam_filters.png", caption = "JWST/NIRCAM filter throughput.")
+            image_name = "filter_throughput/nircam_filters.png"
+            caption = "JWST/NIRCAM filter throughput."
         elif instrument == "MIRI":
-            st.image("filter_throughput/miri_filters.png", caption = "JWST/MIRI filter throughput.")
+            image_name = "filter_throughput/miri_filters.png"
+            caption = "JWST/MIRI filter throughput."
         elif instrument == "NIRISS":
-            st.image("filter_throughput/niriss_filters.png", caption = "JWST/MIRI filter throughput.")
+            image_name = "filter_throughput/niriss_filters.png"
+            caption = "JWST/MIRI filter throughput."
 
     else:
         instrument = instrument_name
@@ -81,27 +84,28 @@ def get_filter_throughput(telescope_name, instrument_name, filter_names):
             row_indexes = np.where(np.isin(wfc3_uvis.values, filter_names))[0] + 1 # get indexed values
             for ii in np.unique(row_indexes):
                 image_name = "filter_throughput/wfc3_uvis_filters" + str(ii) + ".png"
-                st.image(image_name, caption = "HST/WFC3/UVIS filter throughput.")
+                caption = "HST/WFC3/UVIS filter throughput."
 
         if instrument == "WFC3/IR":
             row_indexes = np.where(np.isin(wfc3_ir.values, filter_names))[0] + 1 # get indexed values
             for ii in np.unique(row_indexes):
                 image_name = "filter_throughput/wfc3_ir_filters" + str(ii) + ".png"
-                st.image(image_name, caption = "HST/WFC3/IR filter throughput.")
+                caption = "HST/WFC3/IR filter throughput."
         
         if instrument == "ACS/WFC":
             row_indexes = np.where(np.isin(acs_wfc.values, filter_names))[0] + 1 # get indexed values
             for ii in np.unique(row_indexes):
                 image_name = "filter_throughput/acs_wfc_filters" + str(ii) + ".png"
-                st.image(image_name, caption = "HST/ACS/WFC filter throughput.")
+                caption = "HST/ACS/WFC filter throughput."
         
         if instrument == "ACS/HRC":
             row_indexes = np.where(np.isin(acs_hrc.values, filter_names))[0] + 1 # get indexed values
             for ii in np.unique(row_indexes):
                 image_name = "filter_throughput/acs_hrc_filters" + str(ii) + ".png"
-                st.image(image_name, caption = "HST/ACS/HRC filter throughput.")
+                caption = "HST/ACS/HRC filter throughput."
 
         if instrument == "ACS/SBC":
-            st.image("filter_throughput/acs_sbc_filters.png", caption = "HST/ACS/SBC filter throughput.")
+            image_name = "filter_throughput/acs_sbc_filters.png"
+            caption = "HST/ACS/SBC filter throughput."
     
-    return instrument
+    return instrument, image_name, caption

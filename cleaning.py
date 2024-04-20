@@ -92,7 +92,7 @@ def show_streamlit(filter_data, filter, key_names, wcs_header = None, grid = Non
     # find upper/lower limits for data and initial vmax/vmin values
     not_nan_data = filter_data[~ pd.isnull(filter_data)]
 
-    lower, upper = float(math.floor(np.percentile(not_nan_data, 0.1))), float(math.ceil(np.percentile(not_nan_data, 99.9)))
+    lower, upper = float(math.floor(np.percentile(not_nan_data, 0.05))), float(math.ceil(np.percentile(not_nan_data, 99.95)))
     lower_init, upper_init = np.percentile(not_nan_data, 1), np.percentile(not_nan_data, 90)
 
     # show on streamlit
