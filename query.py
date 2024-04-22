@@ -1,8 +1,41 @@
 # import necessary packages
+import re
+import numpy as np
+import streamlit as st
+
 from astroquery.mast import Observations
 from reproject import reproject_interp
+from astropy.coordinates import SkyCoord
 from astropy.io import fits
-import streamlit as st
+import astropy.units as u
+
+# coordinate query for objects
+def search_coords(raw_coords):
+    """
+    Search for a list of objects imaged by JWST within 5 degrees of a specified RA/DEC.
+    Parameters
+    ----------
+        raw_coords (str) : streamlit input
+    Returns
+    -------
+        object_list (list) : list of queried objects within 5 deg of RA/DEC input
+    """
+    # split string into ra and dec
+    output = re.findall(r'[-+]?\d*\.\d+|\d+', raw_coords)
+
+    ra_coord = float(output[0]) * u.degree # get rid of spaces and convert to float
+    dec_coord = float(output[1]) * u.degree
+
+    # query from mast database
+    coords = SkyCoord(ra = ra_coord, dec = dec_coord)
+    obs_table = Observations.query_criteria(obs_collection = "JWST", coordinates = coords, radius = 5 * u.degree, 
+                                            dataproduct_type = "image", intentType = "science", dataRights = "public")
+    
+    # return list of objects
+    obs_df = obs_table.to_pandas()
+    object_list = list(np.unique(obs_df["target_name"]))
+
+    return object_list
 
 # query filters
 @st.cache_resource
@@ -19,13 +52,22 @@ def search_all_images(filter, telescope, obj):
     """
     obs = Observations.query_criteria(obs_collection = telescope, filters = filter, target_name = obj, intentType = "science", dataproduct_type = "image")
     prod = Observations.get_product_list(obs[0])
-    if telescope == "JWST":
-        im = prod[(prod['productType'] == 'SCIENCE') & (prod['productSubGroupDescription'] == "I2D") & (prod['calib_level'] > 2)]
-    else:
-        im = prod[prod['productType'] == 'SCIENCE' & (prod['calib_level'] > 2)]
+    try:
+        if telescope == "JWST":
+            im = prod[(prod['productType'] == 'SCIENCE') & (prod['productSubGroupDescription'] == "I2D") & (prod['calib_level'] > 2)]
+        else:
+            im = prod[prod['productType'] == 'SCIENCE' & (prod['calib_level'] > 2)]
 
-    if len(im) != 1:
-        st.write("Error !!!")
+        if len(im) != 1:
+            st.write("Multiple obs !!!")
+        
+    except TypeError:
+        st.error("Corrupt fits file. Please try another instrument or input a different object.")
+        im = None
+
+    except OSError:
+        st.error("Corrupt fits file. Please try another instrument or input a different object.")
+        im = None
 
     return im
 
@@ -46,7 +88,13 @@ def download_image(_im, filter, telescope, obj, extension = 0):
         file_name (str) : filepath to fits file
     """
     # choose specific image
-    image = _im[extension]
+    try:
+        image = _im[extension]
+    except TypeError:
+        st.error("Corrupt fits file. Please try another instrument or input a different object.")
+        image = None
+    except:
+        image = _im[-1]
     
     # download file and return filename
     download = Observations.download_products(image, cache = False)

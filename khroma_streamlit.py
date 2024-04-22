@@ -1,12 +1,14 @@
 # import necessary packages
 import numpy as np
+import matplotlib.pyplot as plt
 import streamlit as st
 import re
 
+import astropy.units as u
 from astropy.visualization import make_lupton_rgb
 from astroquery.mast import Observations
 from astropy.wcs import WCS
-import matplotlib.pyplot as plt
+from astropy.wcs import FITSFixedWarning
 
 import query
 import cleaning
@@ -17,9 +19,14 @@ st.set_page_config(page_title = "Khroma", layout = "wide")
 
 st.title("Khroma")
 
-st.write("Astronomical images are one of the ways we can visually come to understand the grandeur of the Universe. The creation of these images takes a lot of scientific and artistic work. Using this page, you can create your own astronomical images using raw filter data from the Mikulski Archive for Space Telescopes (MAST). Start by choosing a space telescope and astronomical object below.")
+# introduction
+st.write("Astronomical images are one of the ways we can visually come to understand the grandeur of the Universe. \
+         The creation of these images involves a combination of scientific and artistic work. Following the steps below, \
+         you can create your own color astronomical images using three or more different filter images from the \
+         James Webb Space Telescope (JWST) data from the [Mikulski Archive for Space Telescopes (MAST)](%s). \
+         Start by choosing an astronomical object to image below." % "https://archive.stsci.edu/")
 
-# keeping button clicked on
+# keeping button clicked on for whole session
 if 'clicked' not in st.session_state: # initialize the key in session state
     st.session_state.clicked = {1: False, 2: False, 3: False}
 
@@ -29,34 +36,46 @@ def clicked(button): # function to update the value in session state
 #################### SECTION 1 : querying images ####################
 col1, col2 = st.columns(spec = [0.34, 0.66])
 
-### GALEX - FUV, NUV (2 filters); HLSP - unwell fits files; HUT ???; OPO - public outreach (see actual STScI image!); PS1 - unwell fits files
+with col2:
+    # search for objs based on ra/dec
+    raw_coords = st.text_input("Search for object names based on RA/DEC [deg]:", placeholder = "e.g. 150, -30")
+    if raw_coords != "":
+        obj_list = query.search_coords(raw_coords)
+
+        with st.container(height = 200):
+            st.write(obj_list)
+
+    st.write("You can also get inspiration from [published JWST images](%s)." % "https://webbtelescope.org/images")
 
 with col1:
     # choose telescope
-    telescope_choice = st.selectbox("Choose a space telescope:",
-                                    ("Hubble Legacy Archive (HLA)", "Hubble Space Telescope (HST)", "James Webb Space Telescope (JWST)"),
-                                    index = None,
-                                    placeholder = "Select telescope ...")
+    #telescope_choice = st.selectbox("Choose a space telescope:",
+    #                                ("Hubble Legacy Archive (HLA)", "Hubble Space Telescope (HST)", "James Webb Space Telescope (JWST)"),
+    #                                index = None,
+    #                                placeholder = "Select telescope ...")
+    telescope_choice = "James Webb Space Telescope (JWST)"
 
     # input object to image
-    obj_name = st.text_input("Input an astronomical object:", placeholder = "e.g. NGC-4303")
+    obj_name = st.text_input("Input an astronomical object:", placeholder = "e.g. NGC-3132")
 
     # set initial filter list to none
-    filter_list = None
+    filter_list = []
     
-    # streamlit
-    st.button("Check instrument availability.", on_click = clicked, args = [1]) # button 1 with callback function
+    # look for instruments
+    st.button("Check instrument availability.", on_click = clicked, args = [1]) # button 1
 
     if st.session_state.clicked[1]: # button 1 -- conditional based on value in session state, not the output
-        telescope_name = re.findall(r'\((.*?)\)', telescope_choice)[0] # find string in parenthesis to use for query
+        telescope_full = re.sub(r'\([^)]*\)', '', telescope_choice) # get full 
+        telescope_name = re.findall(r'\((.*?)\)', telescope_choice)[0] # get string in parenthesis to use for query
 
         # check instrument availability
         observation_table = Observations.query_criteria(obs_collection = telescope_name, target_name = obj_name, 
-                                                        intentType = "science", dataproduct_type = "image")
+                                                        intentType = "science", dataproduct_type = "image")                       
 
         instruments = list(np.unique(observation_table["instrument_name"])) 
         if len(instruments) == 0:
-            st.write(f"There are no observations of {obj_name} available from {telescope_name}. Please try a different telescope or input a different object.")
+            st.write(f"There are no observations of {obj_name} available from {telescope_name}. \
+                     Please try a different telescope or input a different object.")
         
         else:
             instrument_name = st.radio("Please select an available instrument:", options = instruments)
@@ -68,16 +87,28 @@ with col1:
 
             # choose filters
             if len(total_filter_list) == 1:
-                st.write(f"Only 1 filter image of {obj_name} is available from {telescope_name}/{instrument_name}, which is not enough to create an RGB image. Please try a different instrument or input a different object.")
+                st.write(f"Only 1 filter image of {obj_name} is available from {telescope_name}/{instrument_name}, \
+                         which is not enough to create an RGB image. Please try a different instrument or input a different object.")
                 filter_list = None
             
             elif len(total_filter_list) == 2:
-                st.write(f"Only 2 filter images of {obj_name} are available from {telescope_name}/{instrument_name}, which is not enough to create an RGB image. Please try a different instrument or input a different object.")
+                st.write(f"Only 2 filter images of {obj_name} are available from {telescope_name}/{instrument_name}, \
+                         which is not enough to create an RGB image. Please try a different instrument or input a different object.")
                 filter_list = None
 
             else:
-                filter_list = st.multiselect(label = f"The following {len(total_filter_list)} filters are available. Select which ones to plot:",
+                filter_list = st.multiselect(label = f"The following {len(total_filter_list)} filters are available. \
+                                             Select which ones to plot:",
                                              options = total_filter_list)
+                
+                # sort filter list
+                for ff in range(len(filter_list)):
+                    filt = filter_list[ff]
+                    if ";" in filt:
+                        new_filter_name = filt.split(";")[1].strip() # get part after semicolon
+                        filter_list[ff] = new_filter_name
+
+                filter_list = sorted(filter_list, key = lambda s: int(re.search(r'\d+', s).group()))
 
                 # download filter data
                 for filter_name in filter_list:
@@ -85,33 +116,44 @@ with col1:
                     vars()["file_" + filter_name] = query.download_image(im, filter_name, telescope_name, obj_name, 0)
                     st.write("    " + filter_name)
 
-with col2:
-    ### sky map
-    st.write(" sky map tbd ... working on it ... ")
-
 st.markdown("""---""")
 
 #################### SECTION 2 : cleaning images ####################
 col1, col2, col3 = st.columns(spec = [0.34, 0.33, 0.33])
-### check that all filters are from the same observing run ?? / incorporate observing run somehow ?? -- toggle through different available images ??? -- FLIP THROUGH EACH OF THE IMAGES WHEN DOWNLOADED !!!
 
 with col1:
-    st.write("Click below to see the individual filter images that you have chosen. Remember that to create a RGB (red-green-blue) color image, you will need at least 3 different filters to assign to each of the three different colors.")
     st.button("Show individual filter images.", on_click = clicked, args = [2]) # button 2 with callback function
 
-    st.write("Use the toggles above each individual filter image to adjust the minimum and maximum to your liking. For example, if the background of the image looks too dark, consider increasing the lower bound.")
+    # explanation
+    expander_filter = st.expander("Use the toggles above each individual filter image to adjust the lower and upper bounds to your liking.")
+    expander_filter.write("These numbers specify the lower and upper bound for clipping and normalizing the data. \
+                          In other words, all pixels with values less than the lower bound will be plotted as white \
+                          and all pixels with values greater than the higher bound will be plotted as black. \
+                          The ideal image will have a white background and an object whose features can be seen by varying shades of gray.")
+    expander_filter.image("images/norm_example.png", "Properly normalized image (NIRCAM/F470N of NGC 3132).")
+    expander_filter.write("For example, if the background of the image looks too light, consider decreasing the lower bound. \
+                          If the whole object is oversaturated with no shading, consider increasing the upper bound.")
 
-    st.write("")
+    ### expander to go between different observing runs to flip through ???
 
-    st.write("Grid lines can help orient the viewer.")
-    grid = st.checkbox("Add grid lines.")
+    # plot customizations -- grid and ra/dec coords
+    expander_fplot = st.expander("Plot customizations.")
+    expander_fplot.write("Grid lines can help visually orient the viewer.")
+    grid = expander_fplot.checkbox("Add grid lines.")
 
-    st.write("Sometimes it can be helpful for astronomers to use sky coordinates, such as right ascension and declination, to see the spatial spread of images across the sky. These coordinates work like longitude and latitude lines, except projected on the sky.")
+    expander_fplot.write("Sometimes it can be helpful for astronomers to use a celestial coordinate system to see \
+                         the spatial spread of an object across the sky. The [equatorial coordinate system](%s), \
+                         with which an object's location is specified by its right ascension (RA) and declination (DEC), \
+                         works like longitude and latitude lines projected on the sky." \
+                         % "https://en.wikipedia.org/wiki/Equatorial_coordinate_system")
 
-    hms = st.checkbox("Use RA/Dec.")
+    hms = expander_fplot.checkbox("Use RA/Dec.")
 
-    st.write("If the individual filter images were taken during different observing runs, they might be slightly misaligned. You can use the button below to reproject all the images against a reference filter image.")
+    st.write("If the individual filter images were taken during different observing runs or reduced differently, \
+             they might be slightly misaligned. You can use the button below to reproject all the images against a \
+             reference filter image such that they are all the same size.")
 
+    # align images
     reproj = st.checkbox("Align images.")
     # if aligning, choose which filter to align against
     if reproj:
@@ -125,7 +167,10 @@ if st.session_state.clicked[2]: # button 2
         match_header, vars()[align + "_data"] = query.load_fits(vars()["file_" + align])
 
         for filt in filter_list:
-            vars()[filt + "_data"] = query.reproject(vars()["file_" + filt], match_header, filt)
+            try:
+                vars()[filt + "_data"] = query.reproject(vars()["file_" + filt], match_header, filt)
+            except FITSFixedWarning:
+                st.error("The images cannot be aligned due to problems with the FITS headers.")
 
     else:
         for filt in filter_list:
@@ -137,7 +182,6 @@ if st.session_state.clicked[2]: # button 2
         for ii in col2_index:
             filt = filter_list[ii]
             filter_data = vars()[filt + "_data"]
-            key_names = [filt + "_key1", filt + "_key2"]
        
             if reproj:
                 obj_wcs = WCS(match_header)
@@ -146,14 +190,13 @@ if st.session_state.clicked[2]: # button 2
             else:
                 obj_wcs = None
 
-            vars()["norm_" + filt + "_data"] = cleaning.show_streamlit(filter_data, filt, key_names, wcs_header = obj_wcs, grid = grid)
+            vars()["norm_" + filt + "_data"] = cleaning.show_streamlit(filter_data, filt, wcs_header = obj_wcs, grid = grid)
 
     with col3:
         col3_index = np.arange(1, len(filter_list), 2)
         for ii in col3_index:
             ff = filter_list[ii]
             filter_data = vars()[ff + "_data"]
-            key_names = [ff + "_key1", ff + "_key2"]
 
             if reproj:
                 obj_wcs = WCS(match_header)
@@ -162,7 +205,7 @@ if st.session_state.clicked[2]: # button 2
             else:
                 obj_wcs = None
 
-            vars()["norm_" + ff + "_data"] = cleaning.show_streamlit(filter_data, ff, key_names, wcs_header = obj_wcs, grid = grid)
+            vars()["norm_" + ff + "_data"] = cleaning.show_streamlit(filter_data, ff, wcs_header = obj_wcs, grid = grid)
 
 st.markdown("""---""")
 
@@ -170,135 +213,182 @@ st.markdown("""---""")
 col1, col2 = st.columns(spec = [0.34, 0.66])
 
 with col1:
-    st.write("Now we are ready to layer all of the individual filter data and create our RGB image!")
+    # if there are enough filters selected, show user input for creation of RGB image
+    if (len(filter_list) >= 3):
+        st.write("Now we are ready to layer all of the individual filter data and create our RGB image!")
 
-    st.button("Show full RGB image.", on_click = clicked, args = [3]) # button 3
+        st.write("Assign each color a filter below. This can be based off the filter passband ranges shown below, \
+                 or it can be whatever you decide!")
 
-    # if there are enough filters, show user input for creation of RGB image
-    if (telescope_choice != None) & (filter_list != None):
-        if (len(filter_list) >= 3):
-            st.write("Assign each color a filter below. This can be based off the filter passband ranges shown above, or it can be whatever you decide!")
+        # explain filter passbands
+        instrument, image_name, caption_label = imaging.get_filter_throughput(telescope_name, instrument_name, filter_list)
 
-            instrument, image_name, caption_label = imaging.get_filter_throughput(telescope_name, instrument_name, filter_list)
+        expander_filters = st.expander(f"Scientists often color filters based on the wavelength range of light \
+                                       each filter allows to pass through. \
+                                       The image below shows the throughput for each of the filters on {instrument_name}.")
+        expander_filters.image(image_name, caption = caption_label)
+        expander_filters.write("Regardless of whether the filters can image visible light, \
+                               scientists usually match longer wavelengths to redder colors and shorter wavelengths to bluer colors.")
 
-            expander_filters = st.expander(f"Scientists often match filters to colors based on what wavelengths of light they let it. The image below shows the throughput for each of the filters on {instrument_name}.")
-            # expander.write("The chart above shows some numbers I picked for you. I rolled actual dice for these, so they're *guaranteed to be random")
-            expander_filters.image(image_name, caption = caption_label)
+        # explain rgb imaging
+        expander_colors = st.expander(f"Creating RGB images.")
+        expander_colors.write("In its simplest form, RGB images are created by layering three distinct images colored red, green, and blue. \
+                              To get a more nuanced set of colors, you can also layer an image in multiple colors to get \
+                              secondary colors such as yellow, cyan, and magenta.")
+        expander_colors.image("images/rgb_venn.jpeg", caption = "Primary colors (red, green, blue) and \
+                              secondary colors (yellow, cyan, magenta).")
+        expander_colors.write("Using the options below, assign each a filter (or multiple filters) to red, green, and blue. \
+                              If you have multiple filters assigned to one color, you must specify the comparative weights of each filter. \
+                              Additionally, if you are assigning a filter to multiple colors, make sure that it is weighted similarly \
+                              in each filter to accurately achieve the secondary colors.")
 
-            expander_colors = st.expander(f"Expander about creating CMY images.")
-            expander_colors.write("text + CMY image?")
+        # assign rgb values
+        r_filter = st.multiselect(label = "Select the filter(s) for red:", options = filter_list)
 
-            # assign rgb values
-            r_filter = st.multiselect(label = "Select the filter for red:", options = filter_list)
-
-            # red filter
-            r_num = len(r_filter)
-            if r_num == 1:
-                r = vars()["norm_" + r_filter[0] + "_data"]
+        # red filter
+        r_num = len(r_filter)
+        if r_num == 1:
+            r = vars()["norm_" + r_filter[0] + "_data"]
             
-            elif r_num > 1:
-                columns_text = st.columns(spec = [0.1, 0.9])
-                with columns_text[1]:
-                    st.write("Choose the weights for each red filter:")
+        elif r_num > 1:
+            columns_text = st.columns(spec = [0.1, 0.9])
+            with columns_text[1]:
+                st.write("Choose the weights for each red filter:")
 
-                rspec_list = [0.1] + [0.9/r_num] * r_num
-                columns = st.columns(spec = rspec_list)
-                rweight = 0
+            rspec_list = [0.1] + [0.9/r_num] * r_num
+            columns = st.columns(spec = rspec_list)
+            rweight = 0
 
-                for rr in range(r_num):
-                    with columns[rr+1]:
-                        vars()["rweight_" + r_filter[rr]] = st.number_input(label = r_filter[rr], value = 1/r_num, key = "r_" + r_filter[rr])
-                        rweight += vars()["rweight_" + r_filter[rr]]
+            for rr in range(r_num):
+                with columns[rr+1]:
+                    vars()["rweight_" + r_filter[rr]] = st.number_input(label = r_filter[rr], value = 1/r_num, key = "r_" + r_filter[rr])
+                    rweight += vars()["rweight_" + r_filter[rr]]
                 
-                for rr in range(r_num):
-                    rf = r_filter[rr]
-                    normalized_weight = vars()["rweight_" + rf] / rweight
-                    if rr == 0:
-                        r = normalized_weight * vars()["norm_" + rf + "_data"]
-                    else:
+            for rr in range(r_num):
+                rf = r_filter[rr]
+                normalized_weight = vars()["rweight_" + rf] / rweight
+                if rr == 0:
+                    r = normalized_weight * vars()["norm_" + rf + "_data"]
+                else:
+                    try:
                         r += normalized_weight * vars()["norm_" + rf + "_data"]
+                    except ValueError:
+                        st.error("Please align the images using the 'Align images.' checkbox above.")
 
-            # green filter
-            g_filter = st.multiselect(label = "Select the filter for green:", options = filter_list)
+        # green filter
+        g_filter = st.multiselect(label = "Select the filter(s) for green:", options = filter_list)
 
-            g_num = len(g_filter)
-            if g_num == 1:
-                g = vars()["norm_" + g_filter[0] + "_data"]
+        g_num = len(g_filter)
+        if g_num == 1:
+            g = vars()["norm_" + g_filter[0] + "_data"]
 
-            if g_num > 1:
-                columns_text = st.columns(spec = [0.1, 0.9])
-                with columns_text[1]:
-                    st.write("Choose the weights for each green filter:")
+        if g_num > 1:
+            columns_text = st.columns(spec = [0.1, 0.9])
+            with columns_text[1]:
+                st.write("Choose the weights for each green filter:")
 
-                gspec_list = [0.1] + [0.9/g_num] * g_num
-                columns = st.columns(spec = gspec_list)
-                gweight = 0
+            gspec_list = [0.1] + [0.9/g_num] * g_num
+            columns = st.columns(spec = gspec_list)
+            gweight = 0
 
-                for gg in range(g_num):
-                    with columns[gg+1]:
-                        vars()["gweight_" + g_filter[gg]] = st.number_input(label = g_filter[gg], value = 1/g_num, key = "g_" + g_filter[gg])
-                        gweight += vars()["gweight_" + g_filter[gg]]
+            for gg in range(g_num):
+                with columns[gg+1]:
+                    vars()["gweight_" + g_filter[gg]] = st.number_input(label = g_filter[gg], value = 1/g_num, key = "g_" + g_filter[gg])
+                    gweight += vars()["gweight_" + g_filter[gg]]
                 
-                for gg in range(r_num):
-                    gf = g_filter[gg]
-                    normalized_weight = vars()["gweight_" + gf] / gweight
-                    if gg == 0:
-                        g = normalized_weight * vars()["norm_" + gf + "_data"]
-                    else:
+            for gg in range(g_num):
+                gf = g_filter[gg]
+                normalized_weight = vars()["gweight_" + gf] / gweight
+                if gg == 0:
+                    g = normalized_weight * vars()["norm_" + gf + "_data"]
+                else:
+                    try:
                         g += normalized_weight * vars()["norm_" + gf + "_data"]
+                    except ValueError:
+                        st.error("Please align the images using the 'Align images.' checkbox above.")
 
-            # blue filter
-            b_filter = st.multiselect(label = "Select the filter for blue:", options = filter_list)
+        # blue filter
+        b_filter = st.multiselect(label = "Select the filter(s) for blue:", options = filter_list)
 
-            b_num = len(b_filter)
-            if b_num == 1:
-                b = vars()["norm_" + b_filter[0] + "_data"]
+        b_num = len(b_filter)
+        if b_num == 1:
+            b = vars()["norm_" + b_filter[0] + "_data"]
 
-            if b_num > 1:
-                columns_text = st.columns(spec = [0.1, 0.9])
-                with columns_text[1]:
-                    st.write("Choose the weights for each blue filter:")
+        if b_num > 1:
+            columns_text = st.columns(spec = [0.1, 0.9])
+            with columns_text[1]:
+                st.write("Choose the weights for each blue filter:")
 
-                bspec_list = [0.1] + [0.9/b_num] * b_num
-                columns = st.columns(spec = bspec_list)
-                bweight = 0
+            bspec_list = [0.1] + [0.9/b_num] * b_num
+            columns = st.columns(spec = bspec_list)
+            bweight = 0
 
-                for bb in range(b_num):
-                    with columns[bb+1]:
-                        vars()["bweight_" + b_filter[bb]] = st.number_input(label = b_filter[bb], value = 1/b_num, key = "b_" + b_filter[bb])
-                        bweight += vars()["bweight_" + b_filter[bb]]
+            for bb in range(b_num):
+                with columns[bb+1]:
+                    vars()["bweight_" + b_filter[bb]] = st.number_input(label = b_filter[bb], value = 1/b_num, key = "b_" + b_filter[bb])
+                    bweight += vars()["bweight_" + b_filter[bb]]
                 
-                for bb in range(b_num):
-                    bf = b_filter[bb]
-                    normalized_weight = vars()["bweight_" + bf] / bweight
-                    if bb == 0:
-                        b = normalized_weight * vars()["norm_" + bf + "_data"]
-                    else:
+            for bb in range(b_num):
+                bf = b_filter[bb]
+                normalized_weight = vars()["bweight_" + bf] / bweight
+                if bb == 0:
+                    b = normalized_weight * vars()["norm_" + bf + "_data"]
+                else:
+                    try:
                         b += normalized_weight * vars()["norm_" + bf + "_data"]
+                    except ValueError:
+                        st.error("Please align the images using the 'Align images.' checkbox above.")
 
-            st.write("You can also adjust the stretch factor and Q-factor of the image.")
+        st.button("Show full RGB image.", on_click = clicked, args = [3]) # button 3
 
-            # get stretch, Q-factor
-            s_value = st.slider(label = "Stretch factor", min_value = 0.01, max_value = 2., step = 0.01, value = 0.5)
-            q_value = st.slider(label = "Q-factor", min_value = 0.1, max_value = 20., step = 0.01, value = 5.)
+        # normalization adjustments -- s and q values
+        expander_sq = st.expander("Normalization adjustments.")
+        expander_sq.write("You can adjust the linear stretch of the image.")
+        s_value = expander_sq.slider(label = "Stretch factor", min_value = 0.01, max_value = 2., step = 0.01, value = 0.5)
+        expander_sq.write("You can also adjust the asinh softening parameter.")
+        q_value = expander_sq.slider(label = "Q-factor", min_value = 0.1, max_value = 20., step = 0.01, value = 5.)
 
-            st.write("Don't forget to download your finished product at the end!")
+        # plot customizations
+        expander_plot = st.expander("Plot customizations.")
+        title_name = expander_plot.text_input("Add a title (e.g. object name) to your image:", placeholder = None)
+        plot_filter = expander_plot.checkbox("Add filter names to image.")
+
+        # get color of each filter
+        color_list, final_filters = None, None
+        if plot_filter:
+            final_filters, color_list = [], []
+            for ff in range(len(filter_list)):
+                filt = filter_list[ff]
+                filt_color = "#"
+                    
+                # get hex color by looping through RGB
+                for color_filter in [r_filter, g_filter, b_filter]:
+                    if filt in color_filter:
+                        filt_color += "FF"
+                    else:
+                        filt_color += "00"
+                    
+                if filt_color != "#000000": # filter not used in final image
+                    final_filters += [filt]
+                    color_list += [filt_color]
+            
+        st.write("Don't forget to download your finished product at the end! :)")
 
 if st.session_state.clicked[3]: # button 3
     with col2:
         # create rgb image
         try:
             rgb = make_lupton_rgb(r, g, b, stretch = s_value, Q = q_value)
-            fig, ax = imaging.plot_rgb(rgb)
+            fig, ax = imaging.plot_rgb(rgb, telescope_full, instrument, final_filters, title = title_name, filter_colors = color_list)
             st.pyplot(fig)
         except NameError:
             st.error("Make sure that you have assigned a filter to each color.")
         except ValueError:
-            st.error("Make sure that the images are aligned. You can use the 'Align images.' checkbox above to do so manually. If that does not work, there might be a problem with the fits header.")
+            st.error("Please align the images using the 'Align images.' checkbox above.")
 
         # download image
-        image_name = obj_name + "_" + instrument + ".png"
-        plt.savefig(image_name, dpi = 600)
-        st.download_button(label = "Download image.", data = open(image_name, "rb").read(), file_name = image_name, mime = "image/png")
+        image_name = obj_name + "_" + instrument + ".pdf"
+        plt.savefig(image_name, dpi = 600, bbox_inches = "tight")
+        st.download_button(label = "Download image.", data = open(image_name, "rb").read(), file_name = image_name, mime = "application/octet-stream")
 
 ### more information about object + observing run (PI)

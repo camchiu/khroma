@@ -1,10 +1,9 @@
 # import necessary packages
-import matplotlib.pyplot as plt
-from matplotlib.ticker import MultipleLocator
-
+import math
 import numpy as np
 import pandas as pd
-import math
+import matplotlib.pyplot as plt
+
 import streamlit as st
 
 # create single images of filters
@@ -76,7 +75,7 @@ def normalize(data, vmin, vmax):
     return data_normalize
 
 # show individual filter plots on streamlit
-def show_streamlit(filter_data, filter, key_names, wcs_header = None, grid = None):
+def show_streamlit(filter_data, filter, wcs_header = None, grid = None):
     """Show plots on streamlit with adjustable min/max values and returns normalized data.
     Parameters
     ----------
@@ -98,17 +97,17 @@ def show_streamlit(filter_data, filter, key_names, wcs_header = None, grid = Non
     # show on streamlit
     st.write(f"Adjust bounds for {filter} filter.")
 
-    col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2) # lower and upper bound inputs
     with col1:
         fmin = st.number_input(f"Lower (> {lower}):", step = 0.1, min_value = lower, max_value = upper, 
-                               value = lower_init, key = key_names[0])
+                               value = lower_init, key = filter + "_key1")
     with col2:
         fmax = st.number_input(f"Upper (< {upper}):", step = 0.1, min_value = lower, max_value = upper, 
-                               value = upper_init, key = key_names[1])
+                               value = upper_init, key = filter + "_key2")
     
     assert fmin < fmax, "Minimum value must be less than maximum value."
 
-    # normalize data based on streamlit input and plot
+    # return normalized data based on streamlit input and plot
     norm_data = normalize(filter_data, fmin, fmax)
 
     fig, ax = plot_single(data = norm_data, grid = grid, wcs_header = wcs_header)

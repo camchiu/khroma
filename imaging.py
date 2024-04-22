@@ -4,25 +4,7 @@ import streamlit as st
 import pandas as pd
 import numpy as np
 
-### method to create and download a full RGB or RGB + CMY astronomical image
-
-# plot rgb image
-def plot_rgb(rgb_data):
-    """Plot RGB data.
-    Parameters
-    ----------
-        rgb_data (array) : astropy make_lupton_rgb data
-    Output
-    ------
-        fig, ax : figure and axis onto which data is plotted
-    """
-    fig, ax = plt.subplots(figsize = (10, 10))
-    ax.imshow(rgb_data, vmin = 0, vmax = 1, cmap = None, origin = "lower")
-    plt.axis('off')
-
-    return fig, ax
-
-# get image for instrument throughput
+# get image for instrument throughputs
 def get_filter_throughput(telescope_name, instrument_name, filter_names):
     """Shows image(s) on streamlit from filter_throughput folder based on telescope, instrument, and filters.
     Parameters
@@ -33,6 +15,8 @@ def get_filter_throughput(telescope_name, instrument_name, filter_names):
     Output
     ------
         instrument (str) : instrument name
+        image_name (str) : path to corresponding filter throughput image
+        caption (str) : caption for filter throughput image
     """
 
     # filter throughput -- HST/WFC3/UVIS
@@ -70,13 +54,13 @@ def get_filter_throughput(telescope_name, instrument_name, filter_names):
         # filter throughput -- JWST
         if instrument == "NIRCAM":
             image_name = "filter_throughput/nircam_filters.png"
-            caption = "JWST/NIRCAM filter throughput."
+            caption = "JWST/NIRCAM filter throughputs."
         elif instrument == "MIRI":
             image_name = "filter_throughput/miri_filters.png"
-            caption = "JWST/MIRI filter throughput."
+            caption = "JWST/MIRI filter throughputs."
         elif instrument == "NIRISS":
             image_name = "filter_throughput/niriss_filters.png"
-            caption = "JWST/MIRI filter throughput."
+            caption = "JWST/MIRI filter throughputs."
 
     else:
         instrument = instrument_name
@@ -84,28 +68,77 @@ def get_filter_throughput(telescope_name, instrument_name, filter_names):
             row_indexes = np.where(np.isin(wfc3_uvis.values, filter_names))[0] + 1 # get indexed values
             for ii in np.unique(row_indexes):
                 image_name = "filter_throughput/wfc3_uvis_filters" + str(ii) + ".png"
-                caption = "HST/WFC3/UVIS filter throughput."
+                caption = "HST/WFC3/UVIS filter throughputs."
 
         if instrument == "WFC3/IR":
             row_indexes = np.where(np.isin(wfc3_ir.values, filter_names))[0] + 1 # get indexed values
             for ii in np.unique(row_indexes):
                 image_name = "filter_throughput/wfc3_ir_filters" + str(ii) + ".png"
-                caption = "HST/WFC3/IR filter throughput."
+                caption = "HST/WFC3/IR filter throughputs."
         
         if instrument == "ACS/WFC":
             row_indexes = np.where(np.isin(acs_wfc.values, filter_names))[0] + 1 # get indexed values
             for ii in np.unique(row_indexes):
                 image_name = "filter_throughput/acs_wfc_filters" + str(ii) + ".png"
-                caption = "HST/ACS/WFC filter throughput."
+                caption = "HST/ACS/WFC filter throughputs."
         
         if instrument == "ACS/HRC":
             row_indexes = np.where(np.isin(acs_hrc.values, filter_names))[0] + 1 # get indexed values
             for ii in np.unique(row_indexes):
                 image_name = "filter_throughput/acs_hrc_filters" + str(ii) + ".png"
-                caption = "HST/ACS/HRC filter throughput."
+                caption = "HST/ACS/HRC filter throughputs."
 
         if instrument == "ACS/SBC":
             image_name = "filter_throughput/acs_sbc_filters.png"
-            caption = "HST/ACS/SBC filter throughput."
+            caption = "HST/ACS/SBC filter throughputs."
     
     return instrument, image_name, caption
+
+# plot rgb image
+def plot_rgb(rgb_data, telescope, instrument, filter_list = None, title = "", filter_colors = None):
+    """Plot RGB data.
+    Parameters
+    ----------
+        rgb_data (array) : astropy make_lupton_rgb data
+        telescope (str) : telescope name
+        instrument (str) : instrument name
+        filter_list (list of str) : 
+        title (str) : optionally add telescope and plot title
+        filter_colors (list of str) : optionally add filters and colors used
+    Output
+    ------
+        fig, ax : figure and axis onto which data is plotted
+    """
+    # plot image
+    fig, ax = plt.subplots(figsize = (10, 10), edgecolor = "black")
+    ax.imshow(rgb_data, vmin = 0, vmax = 1, cmap = None, origin = "lower")
+    
+    # customizations -- get rid of axis labels, plot border, white background
+    plt.xticks([])
+    plt.yticks([])
+    plt.tight_layout()
+    plt.gcf().set_facecolor('black')
+    ax.patch.set_edgecolor('white')
+    ax.patch.set_linewidth(2)
+
+    if title != "": # optionally add telescope name and object name above plot
+        plt.subplots_adjust(top = 0.9)
+        plt.text(0.01, 1.02, telescope, horizontalalignment = "left", verticalalignment = "bottom", fontsize = 20, c = "white", transform = plt.gca().transAxes)
+        plt.text(0.99, 1.02, title, horizontalalignment = "right", verticalalignment = "bottom", fontsize = 20, c = "white", transform = plt.gca().transAxes)
+
+    if filter_colors != None: # optionally add instrument and color-coded filters below plot
+        plt.subplots_adjust(bottom = 0.1)
+
+        # add instrument label
+        plt.text(0.01, -0.02, instrument + " filters", horizontalalignment = "left", verticalalignment = "top", fontsize = 12, c = "white", transform = plt.gca().transAxes)
+        plt.text(0.18, -0.02, '|', horizontalalignment = "left", verticalalignment = "top", fontsize = 12, c = "white", transform = plt.gca().transAxes)
+
+        # add filter label
+        for ff in range(len(filter_list)):
+            filt = filter_list[ff]
+            filt_color = filter_colors[ff]
+            xloc = 0.2 + (ff * 0.13)
+
+            plt.text(xloc, -0.02, filt, horizontalalignment = "left", verticalalignment = "top", c = filt_color, fontsize = 12, transform = plt.gca().transAxes)
+
+    return fig, ax
