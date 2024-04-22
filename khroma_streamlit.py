@@ -22,8 +22,8 @@ st.title("Khroma")
 # introduction
 st.write("Astronomical images are one of the ways we can visually come to understand the grandeur of the Universe. \
          The creation of these images involves a combination of scientific and artistic work. Following the steps below, \
-         you can create your own color astronomical images using three or more different filter images from the \
-         James Webb Space Telescope (JWST) data from the [Mikulski Archive for Space Telescopes (MAST)](%s). \
+         you can create your own color astronomical image from three or more different filter images using \
+         James Webb Space Telescope (JWST) data pulled from the [Mikulski Archive for Space Telescopes (MAST)](%s). \
          Start by choosing an astronomical object to image below." % "https://archive.stsci.edu/")
 
 # keeping button clicked on for whole session
@@ -62,7 +62,7 @@ with col1:
     filter_list = []
     
     # look for instruments
-    st.button("Check instrument availability.", on_click = clicked, args = [1]) # button 1
+    st.button("Click here to check what instruments are available.", on_click = clicked, args = [1]) # button 1
 
     if st.session_state.clicked[1]: # button 1 -- conditional based on value in session state, not the output
         telescope_full = re.sub(r'\([^)]*\)', '', telescope_choice) # get full 
@@ -122,17 +122,17 @@ st.markdown("""---""")
 col1, col2, col3 = st.columns(spec = [0.34, 0.33, 0.33])
 
 with col1:
-    st.button("Show individual filter images.", on_click = clicked, args = [2]) # button 2 with callback function
+    st.button("Click here to show individual filter images.", on_click = clicked, args = [2]) # button 2 with callback function
 
     # explanation
-    expander_filter = st.expander("Use the toggles above each individual filter image to adjust the lower and upper bounds to your liking.")
+    expander_filter = st.expander("Use the toggles above each individual filter image to adjust the lower and upper bounds.")
     expander_filter.write("These numbers specify the lower and upper bound for clipping and normalizing the data. \
                           In other words, all pixels with values less than the lower bound will be plotted as white \
                           and all pixels with values greater than the higher bound will be plotted as black. \
                           The ideal image will have a white background and an object whose features can be seen by varying shades of gray.")
     expander_filter.image("images/norm_example.png", "Properly normalized image (NIRCAM/F470N of NGC 3132).")
-    expander_filter.write("For example, if the background of the image looks too light, consider decreasing the lower bound. \
-                          If the whole object is oversaturated with no shading, consider increasing the upper bound.")
+    expander_filter.write("If the background of the image looks too light, consider decreasing the lower bound. \
+                          If the whole object is oversaturated in black with no shading, consider increasing the upper bound.")
 
     ### expander to go between different observing runs to flip through ???
 
@@ -151,7 +151,7 @@ with col1:
 
     st.write("If the individual filter images were taken during different observing runs or reduced differently, \
              they might be slightly misaligned. You can use the button below to reproject all the images against a \
-             reference filter image such that they are all the same size.")
+             reference filter image such that they all cover the same spatial area.")
 
     # align images
     reproj = st.checkbox("Align images.")
@@ -215,7 +215,7 @@ col1, col2 = st.columns(spec = [0.34, 0.66])
 with col1:
     # if there are enough filters selected, show user input for creation of RGB image
     if (len(filter_list) >= 3):
-        st.write("Now we are ready to layer all of the individual filter data and create our RGB image!")
+        st.write("Now we are ready to layer all of the individual filter images to create an RGB image!")
 
         st.write("Assign each color a filter below. This can be based off the filter passband ranges shown below, \
                  or it can be whatever you decide!")
@@ -223,24 +223,27 @@ with col1:
         # explain filter passbands
         instrument, image_name, caption_label = imaging.get_filter_throughput(telescope_name, instrument_name, filter_list)
 
-        expander_filters = st.expander(f"Scientists often color filters based on the wavelength range of light \
-                                       each filter allows to pass through. \
-                                       The image below shows the throughput for each of the filters on {instrument_name}.")
+        expander_filters = st.expander("Filter passband ranges.")
+        expander_filters.write(f"Scientists often color filters based on the wavelength range of light \
+                               each filter allows to pass through. The image below shows the throughput \
+                               for each of the filters on {instrument_name}.")
         expander_filters.image(image_name, caption = caption_label)
         expander_filters.write("Regardless of whether the filters can image visible light, \
-                               scientists usually match longer wavelengths to redder colors and shorter wavelengths to bluer colors.")
+                               scientists usually match longer wavelengths to redder colors and \
+                               shorter wavelengths to bluer colors to match what our eyes see.")
 
         # explain rgb imaging
         expander_colors = st.expander(f"Creating RGB images.")
         expander_colors.write("In its simplest form, RGB images are created by layering three distinct images colored red, green, and blue. \
-                              To get a more nuanced set of colors, you can also layer an image in multiple colors to get \
-                              secondary colors such as yellow, cyan, and magenta.")
+                              To get a more nuanced set of colors, you can also layer an image in multiple colors such that they \
+                              are colored in a shade other than red, green, or blue. For example, if you layer an image in both \
+                              red and blue, it will show up as magenta.")
         expander_colors.image("images/rgb_venn.jpeg", caption = "Primary colors (red, green, blue) and \
                               secondary colors (yellow, cyan, magenta).")
-        expander_colors.write("Using the options below, assign each a filter (or multiple filters) to red, green, and blue. \
+        expander_colors.write("Using the options below, assign each filter (or multiple filters) to the colors red, green, and blue. \
                               If you have multiple filters assigned to one color, you must specify the comparative weights of each filter. \
                               Additionally, if you are assigning a filter to multiple colors, make sure that it is weighted similarly \
-                              in each filter to accurately achieve the secondary colors.")
+                              in each filter if you want to accurately achieve a secondary color shade.")
 
         # assign rgb values
         r_filter = st.multiselect(label = "Select the filter(s) for red:", options = filter_list)
@@ -339,19 +342,19 @@ with col1:
                     except ValueError:
                         st.error("Please align the images using the 'Align images.' checkbox above.")
 
-        st.button("Show full RGB image.", on_click = clicked, args = [3]) # button 3
+        st.button("Click here to create RGB image.", on_click = clicked, args = [3]) # button 3
 
         # normalization adjustments -- s and q values
         expander_sq = st.expander("Normalization adjustments.")
-        expander_sq.write("You can adjust the linear stretch of the image.")
+        expander_sq.write("Adjust the linear stretch of the image.")
         s_value = expander_sq.slider(label = "Stretch factor", min_value = 0.01, max_value = 2., step = 0.01, value = 0.5)
-        expander_sq.write("You can also adjust the asinh softening parameter.")
+        expander_sq.write("Adjust the asinh softening parameter.")
         q_value = expander_sq.slider(label = "Q-factor", min_value = 0.1, max_value = 20., step = 0.01, value = 5.)
 
         # plot customizations
         expander_plot = st.expander("Plot customizations.")
         title_name = expander_plot.text_input("Add a title (e.g. object name) to your image:", placeholder = None)
-        plot_filter = expander_plot.checkbox("Add filter names to image.")
+        plot_filter = expander_plot.checkbox("Add filter names and colors to image.")
 
         # get color of each filter
         color_list, final_filters = None, None
