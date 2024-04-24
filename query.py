@@ -29,8 +29,8 @@ def search_coords(raw_coords):
     except IndexError:
         st.error("Please input two separate numbers -- one for the right ascension coordinate and one for the declination coordinate.")
 
-    ra_coord = float(output[0]) * u.degree # get rid of spaces and convert to float
-    dec_coord = float(output[1]) * u.degree
+    ra_coord = float(output[0]) # get rid of spaces and convert to float
+    dec_coord = float(output[1])
 
     if (ra_coord < 0) | (ra_coord > 360):
         st.error("Please input a right ascension coordinate between 0 and 360 degrees.")
@@ -39,7 +39,7 @@ def search_coords(raw_coords):
         st.error("Please input a declination coordinate between -90 and 90 degrees.")
 
     # query from mast database
-    coords = SkyCoord(ra = ra_coord, dec = dec_coord)
+    coords = SkyCoord(ra = ra_coord * u.degree, dec = dec_coord * u.degree)
     obs_table = Observations.query_criteria(obs_collection = "JWST", coordinates = coords, radius = 5 * u.degree, 
                                             dataproduct_type = "image", intentType = "science", dataRights = "public")
     

@@ -75,7 +75,7 @@ with col1:
 
         # check instrument availability
         observation_table = Observations.query_criteria(obs_collection = telescope_name, target_name = obj_name, 
-                                                        intentType = "science", dataproduct_type = "image")                       
+                                                        intentType = "science", dataproduct_type = "image")                  
 
         instruments = list(np.unique(observation_table["instrument_name"])) 
         if len(instruments) == 0:
@@ -86,11 +86,15 @@ with col1:
             instrument_name = st.radio("Please select an available instrument:", options = instruments)
 
             # get filters
-            mask = (observation_table["instrument_name"] == instrument_name) & (observation_table["calib_level"] > 1)
-            observation_table = observation_table[mask]
+            mask = (observation_table["instrument_name"] == instrument_name) & (observation_table["calib_level"] > 1)  
+            observation_table = observation_table[mask]   
             total_filter_list = list(np.unique(observation_table["filters"]))
 
             # choose filters
+            if len(total_filter_list) == 0:
+                st.write(f"There are no calibrated filter images of {obj_name} available from {telescope_name}/{instrument_name}. \
+                         Please try a different instrument or input a different object.")
+
             if len(total_filter_list) == 1:
                 st.write(f"Only 1 filter image of {obj_name} is available from {telescope_name}/{instrument_name}, \
                          which is not enough to create an RGB image. Please try a different instrument or input a different object.")
@@ -173,9 +177,7 @@ if st.session_state.clicked[2]: # button 2
 
         try:
             for filt in filter_list:
-                st.write("begin!")
                 vars()[filt + "_data"] = query.reproject(vars()["file_" + filt], match_header, filt)
-                st.write("end!")
         except:
             for filt in filter_list:
                 vars()[filt + "_header"], vars()[filt + "_data"] = query.load_fits(vars()["file_" + filt])
