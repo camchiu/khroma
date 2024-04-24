@@ -171,12 +171,13 @@ if st.session_state.clicked[2]: # button 2
     if reproj:
         match_header, vars()[align + "_data"] = query.load_fits(vars()["file_" + align])
 
-        for filt in filter_list:
-            try:
+        try:
+            for filt in filter_list:
                 vars()[filt + "_data"] = query.reproject(vars()["file_" + filt], match_header, filt)
-            except:
-                st.error("The images cannot be aligned due to problems with the FITS headers.")
+        except:
+            for filt in filter_list:
                 vars()[filt + "_header"], vars()[filt + "_data"] = query.load_fits(vars()["file_" + filt])
+            st.error("The images cannot be aligned due to problems with the FITS headers.")
 
     else:
         for filt in filter_list:
