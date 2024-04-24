@@ -65,7 +65,7 @@ with col1:
     st.button("Click here to check what instruments are available.", on_click = clicked, args = [1]) # button 1
 
     if st.session_state.clicked[1]: # button 1 -- conditional based on value in session state, not the output
-        telescope_full = re.sub(r'\([^)]*\)', '', telescope_choice) # get full 
+        telescope_full = re.sub(r'\([^)]*\)', '', telescope_choice) # get full telescope name
         telescope_name = re.findall(r'\((.*?)\)', telescope_choice)[0] # get string in parenthesis to use for query
 
         # check instrument availability
@@ -75,7 +75,7 @@ with col1:
         instruments = list(np.unique(observation_table["instrument_name"])) 
         if len(instruments) == 0:
             st.write(f"There are no observations of {obj_name} available from {telescope_name}. \
-                     Please try a different telescope or input a different object.")
+                     Please input a different object.") # try a different telescope
         
         else:
             instrument_name = st.radio("Please select an available instrument:", options = instruments)
@@ -171,6 +171,7 @@ if st.session_state.clicked[2]: # button 2
                 vars()[filt + "_data"] = query.reproject(vars()["file_" + filt], match_header, filt)
             except FITSFixedWarning:
                 st.error("The images cannot be aligned due to problems with the FITS headers.")
+                vars()[filt + "_header"], vars()[filt + "_data"] = query.load_fits(vars()["file_" + filt])
 
     else:
         for filt in filter_list:

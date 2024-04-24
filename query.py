@@ -21,10 +21,22 @@ def search_coords(raw_coords):
         object_list (list) : list of queried objects within 5 deg of RA/DEC input
     """
     # split string into ra and dec
-    output = re.findall(r'[-+]?\d*\.\d+|\d+', raw_coords)
+    try:
+        output = re.findall(r'[-+]?\d*\.\d+|\d+', raw_coords)
+
+        if len(output) != 2:
+            st.error("Please input two separate numbers -- one for the right ascension coordinate and one for the declination coordinate")
+    except IndexError:
+        st.error("Please input two separate numbers -- one for the right ascension coordinate and one for the declination coordinate.")
 
     ra_coord = float(output[0]) * u.degree # get rid of spaces and convert to float
     dec_coord = float(output[1]) * u.degree
+
+    if (ra_coord < 0) | (ra_coord > 360):
+        st.error("Please input a right ascension coordinate between 0 and 360 degrees.")
+
+    if (dec_coord < -90) | (dec_coord > 90):
+        st.error("Please input a declination coordinate between -90 and 90 degrees.")
 
     # query from mast database
     coords = SkyCoord(ra = ra_coord, dec = dec_coord)
