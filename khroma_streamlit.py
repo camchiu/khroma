@@ -10,10 +10,10 @@ from astroquery.mast import Observations
 from astropy.wcs import WCS
 
 import warnings
-from astropy.wcs import FITSFixedWarning
-from astropy.io.fits.verify import VerifyWarning
-warnings.filterwarnings("ignore", category = VerifyWarning)
-warnings.filterwarnings("ignore", category = FITSFixedWarning)
+#from astropy.wcs import FITSFixedWarning
+#from astropy.io.fits.verify import VerifyWarning
+#warnings.filterwarnings("ignore", category = VerifyWarning)
+#warnings.filterwarnings("ignore", category = FITSFixedWarning)
 
 import query
 import cleaning
@@ -174,7 +174,7 @@ if st.session_state.clicked[2]: # button 2
         for filt in filter_list:
             try:
                 vars()[filt + "_data"] = query.reproject(vars()["file_" + filt], match_header, filt)
-            except FITSFixedWarning:
+            except:
                 st.error("The images cannot be aligned due to problems with the FITS headers.")
                 vars()[filt + "_header"], vars()[filt + "_data"] = query.load_fits(vars()["file_" + filt])
 
