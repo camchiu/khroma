@@ -8,7 +8,12 @@ import astropy.units as u
 from astropy.visualization import make_lupton_rgb
 from astroquery.mast import Observations
 from astropy.wcs import WCS
+
+import warnings
 from astropy.wcs import FITSFixedWarning
+from astropy.io.fits.verify import VerifyWarning
+warnings.filterwarnings("ignore", category = VerifyWarning)
+warnings.filterwarnings("ignore", category = FITSFixedWarning)
 
 import query
 import cleaning
