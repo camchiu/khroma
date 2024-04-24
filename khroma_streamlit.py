@@ -173,7 +173,9 @@ if st.session_state.clicked[2]: # button 2
 
         try:
             for filt in filter_list:
+                st.write("begin!")
                 vars()[filt + "_data"] = query.reproject(vars()["file_" + filt], match_header, filt)
+                st.write("end!")
         except:
             for filt in filter_list:
                 vars()[filt + "_header"], vars()[filt + "_data"] = query.load_fits(vars()["file_" + filt])
